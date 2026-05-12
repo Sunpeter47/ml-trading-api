@@ -16,8 +16,8 @@ except Exception as e:
     print(f"❌ Hiba a modell betöltésekor: {e}")
 
 # Kinyerjük a titkos kulcsokat a Render Környezeti Változóiból
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8911601547:AAFW1Iom_P6B8ietJ-2JrlzMu4CXxL0zge4")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "5600712944")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "IDE_JON_A_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "IDE_JON_A_CHAT_ID")
 
 def send_telegram_message(message: str):
     """Küld egy üzenetet a Telegramodra."""

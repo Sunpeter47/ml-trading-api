@@ -15,15 +15,14 @@ try:
 except Exception as e:
     print(f"❌ Hiba a modell betöltésekor: {e}")
 
-# Kinyerjük a titkos kulcsokat a Render Környezeti Változóiból
+# Kinyerjük a titkos kulcsokat a Render Környezeti Változóiból (Biztonság!)
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "IDE_JON_A_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "IDE_JON_A_CHAT_ID")
 
 def send_telegram_message(message: str):
     """Küld egy üzenetet a Telegramodra."""
     if TELEGRAM_TOKEN == "IDE_JON_A_TOKEN":
-        print("A Telegram még nincs beállítva, de a jelzés a következő lenne:")
-        print(message)
+        print("A Telegram még nincs beállítva.")
         return
         
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -39,6 +38,7 @@ def send_telegram_message(message: str):
 
 @app.post("/webhook")
 async def tradingview_webhook(request: Request):
+    """Ezt hívja a TradingView, ha setupot lát a charton."""
     try:
         data = await request.json()
         
@@ -50,29 +50,30 @@ async def tradingview_webhook(request: Request):
                 
         df_live = pd.DataFrame([data], columns=features)
         
-        # ML Számítás
+        # ML Számítás - Kérünk egy jóslatot a géptől
         prob_up = rf_model.predict_proba(df_live)[0][1]
         action = data.get('action', 'UNKNOWN')
         price = data['Close']
         
-        # TESZT LOGOLÁS (Ezt látni fogod a Render logokban)
-        print(f"📡 Adatcsomag érkezett: {action} @ Ár: {price}")
+        print(f"📡 Piaci jelzés érkezett: {action} @ Ár: {price}")
         print(f"🧠 Modell számítása: {prob_up*100:.1f}% esély a Fel irányra.")
         
-        # TESZT RIASZTÁS: Minden 'LONG' jelnél küldünk (0% a limit)
-        if prob_up >= 0.0 and action == 'LONG':
-            msg = f"🧪 <b>TESZT JELZÉS!</b>\nÁr: {price}\nML Esély (Fel): {prob_up*100:.1f}%\n<i>A rendszer hibátlanul működik!</i>"
+        # ÉLES LOGIKA: Csak akkor riasztunk, ha a gép szerint > 55% az esély
+        if prob_up >= 0.55 and action == 'LONG':
+            msg = f"🟢 <b>NQ LONG JELZÉS!</b>\nÁr: {price}\nML Esély (Fel): {prob_up*100:.1f}%\n<i>A TA setup és az ML modell egyetért.</i>"
             send_telegram_message(msg)
             
-        elif prob_up <= 1.0 and action == 'SHORT':
+        elif prob_up <= 0.45 and action == 'SHORT':
             prob_down = 1 - prob_up
-            msg = f"🧪 <b>TESZT SHORT JELZÉS!</b>\nÁr: {price}\nML Esély (Le): {prob_down*100:.1f}%"
+            msg = f"🔴 <b>NQ SHORT JELZÉS!</b>\nÁr: {price}\nML Esély (Le): {prob_down*100:.1f}%\n<i>A TA setup és az ML modell egyetért.</i>"
             send_telegram_message(msg)
+        else:
+            print("❌ Az ML modell megvétózta a jelzést. Nem küldünk Telegramot.")
             
         return {"status": "success", "ml_probability_up": float(prob_up)}
 
     except Exception as e:
-        print(f"Hiba történt: {e}")
+        print(f"Hiba történt a webhooknál: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.get("/")
